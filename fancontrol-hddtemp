@@ -1,0 +1,45 @@
+#!/bin/bash
+
+function check_deps {
+    readonly HDDTEMP=$(command -v hddtemp)
+    if [ $? -ne 0 ]; then
+        echo "command 'hddtemp' not found!"
+		exit 1
+	fi
+    
+    if [ ! -d "${LOG_LOCATION}" ]; then
+        mkdir -p ${LOG_LOCATION}
+    fi
+}
+
+readonly LOG_LOCATION=/srv/fancontrol-hddtemp
+readonly LOG_MAX=${LOG_LOCATION}/max
+readonly LOG_AVG=${LOG_LOCATION}/avg
+readonly CHK_INTERVAL=60
+
+check_deps
+
+while true
+do
+    disk_count=0
+    max=0
+    avg=0
+    sum=0
+    
+    for temp in $(${HDDTEMP} -nw /dev/sd? 2>/dev/null)
+    do
+        temp=$((temp * 1000))
+        ((disk_count+=1))
+        ((sum+=$temp))
+        
+        if [ $temp -gt $max ]; then
+            max=$temp
+        fi
+    done
+    
+    avg=$((sum / disk_count))
+
+    echo $max > ${LOG_MAX}
+    echo $avg > ${LOG_AVG}
+    sleep $CHK_INTERVAL
+done
