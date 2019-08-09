@@ -1,0 +1,9 @@
+[Unit]
+Description=fancontrol-hddtemp
+
+[Service]
+Type=simple
+ExecStart=/root/fancontrol-hddtemp
+
+[Install]
+WantedBy=multi-user.target
