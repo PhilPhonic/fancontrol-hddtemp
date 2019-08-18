@@ -28,12 +28,14 @@ do
     
     for temp in $(${HDDTEMP} -nw /dev/sd? 2>/dev/null)
     do
-        temp=$((temp * 1000))
-        ((disk_count+=1))
-        ((sum+=$temp))
-        
-        if [ $temp -gt $max ]; then
-            max=$temp
+        if [ ! -z "${temp##*[!0-9]*}" ]; then
+            temp=$((temp * 1000))
+            ((disk_count+=1))
+            ((sum+=$temp))
+            
+            if [ $temp -gt $max ]; then
+                max=$temp
+            fi
         fi
     done
     
