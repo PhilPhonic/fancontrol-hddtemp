@@ -4,17 +4,26 @@ function check_deps {
     readonly HDDTEMP=$(command -v hddtemp)
     if [ $? -ne 0 ]; then
         echo "command 'hddtemp' not found!"
-		exit 1
-	fi
-    
+        exit 1
+    fi
+
     if [ ! -d "${LOG_LOCATION}" ]; then
         mkdir -p ${LOG_LOCATION}
     fi
 }
 
+function calc_pctl {
+    file=${1}
+    percentile=${2}
+    cat ${file}|((sort -n;echo)|nl -ba -v0|tac|(read count;cut=$(((count * percentile + 99) / 100)); tac|sed -n "${cut}s/.*\t//p"))
+}
+
 readonly LOG_LOCATION=/srv/fancontrol-hddtemp
+readonly LOG_TEMPS=${LOG_LOCATION}/temps
 readonly LOG_MAX=${LOG_LOCATION}/max
 readonly LOG_AVG=${LOG_LOCATION}/avg
+readonly LOG_PCTL90=${LOG_LOCATION}/pctl90
+readonly LOG_PCTL75=${LOG_LOCATION}/pctl75
 readonly CHK_INTERVAL=60
 
 check_deps
@@ -25,23 +34,32 @@ do
     max=0
     avg=0
     sum=0
-    
+    pctl75=0
+    pctl90=0
+
+    : > ${LOG_TEMPS}
+
     for temp in $(${HDDTEMP} -nw /dev/sd? 2>/dev/null)
     do
         if [ ! -z "${temp##*[!0-9]*}" ]; then
             temp=$((temp * 1000))
+            echo ${temp} >> ${LOG_TEMPS}
             ((disk_count+=1))
             ((sum+=$temp))
-            
+
             if [ $temp -gt $max ]; then
                 max=$temp
             fi
         fi
     done
-    
+
     avg=$((sum / disk_count))
+    pctl75=$(calc_pctl ${LOG_TEMPS} 75)
+    pctl90=$(calc_pctl ${LOG_TEMPS} 90)
 
     echo $max > ${LOG_MAX}
     echo $avg > ${LOG_AVG}
+    echo $pctl75 > ${LOG_PCTL75}
+    echo $pctl90 > ${LOG_PCTL90}
     sleep $CHK_INTERVAL
 done
